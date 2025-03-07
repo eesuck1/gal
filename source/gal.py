@@ -11,37 +11,34 @@ class GAL(nn.Module):
 
         self._left = nn.Parameter(-torch.logspace(start=-borders / 2.0, end=borders / 2.0, steps=borders, base=2.0))
         self._right = nn.Parameter(torch.logspace(start=-borders / 2.0, end=borders / 2.0, steps=borders, base=2.0))
-        self._k_l = nn.Parameter(torch.ones(len(self._left) + 1, dtype=torch.float) * 1e-2)
-        self._k_r = nn.Parameter(torch.ones(len(self._right) + 1, dtype=torch.float))
+
+        self._k_l = nn.Parameter(torch.randn(borders + 1) * 0.1)
+        self._k_r = nn.Parameter(torch.randn(borders + 1) * 0.1)
+
+        self._b_g = nn.Parameter(torch.randn(1) * 0.1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        out = torch.zeros_like(x)
-        zero = torch.tensor([0.0], requires_grad=False)
-        inf = torch.tensor([float("inf")], requires_grad=False)
+        out = torch.zeros_like(x, device=x.device)
+        zero = torch.tensor([0.0], requires_grad=False, device=x.device)
+        inf = torch.tensor([float("inf")], requires_grad=False, device=x.device)
 
-        y = 0.0
+        y = self._b_g
 
         for k_0, (p_0, p_1) in zip(self._k_r,
                                    zip(torch.cat([zero, self._right]), torch.cat([self._right, inf]))):
             mask = (x > p_0) & (x <= p_1)
-
             b = y - k_0 * p_0
-
-            if p_1 != inf:
-                y = b + k_0 * p_1
+            y = b + k_0 * p_1
 
             out[mask] = x[mask] * k_0 + b
 
-        y = 0.0
+        y = self._b_g
 
         for k_0, (p_0, p_1) in zip(self._k_l,
                                    zip(torch.cat([zero, self._left]), torch.cat([self._left, -inf]))):
             mask = (x > p_1) & (x <= p_0)
-
             b = y - k_0 * p_0
-
-            if p_1 != -inf:
-                y = b + k_0 * p_1
+            y = b + k_0 * p_1
 
             out[mask] = x[mask] * k_0 + b
 
@@ -57,9 +54,9 @@ if __name__ == '__main__':
         plt.grid()
         plt.show()
 
-        x = torch.linspace(-10, 10, 1000)
-        ptla = GAL(brs)
+        in_sample = torch.linspace(-10, 10, 1000)
+        gal = GAL(brs)
 
-        plt.plot(x, ptla(x))
+        plt.plot(in_sample, gal(in_sample))
         plt.grid()
         plt.show()
