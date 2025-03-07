@@ -32,7 +32,7 @@ if __name__ == '__main__':
     loss_function = nn.MSELoss()
 
     x = torch.linspace(-2.0 * torch.pi, 2.0 * torch.pi, DATA_STEPS, device=device)
-    y = torch.sin(x)
+    y = torch.sin(x).to(device)
 
     for epoch in range(EPOCHS):
         indexes = torch.randperm(DATA_STEPS)
