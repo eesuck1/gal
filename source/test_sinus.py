@@ -9,18 +9,18 @@ from source.utils import count_parameters
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-EPOCHS = 100
+EPOCHS = 50
 BATCH_SIZE = 256
-BATCHES = 50
+BATCHES = 100
 DATA_STEPS = BATCH_SIZE * BATCHES
 
 if __name__ == '__main__':
     torch.manual_seed(0)
 
     models = {
-        "GAL": SinModel(lambda: GAL(3), device, 5),
-        "ReLU": SinModel(nn.ReLU, device, 7),
-        "Tanh": SinModel(nn.Tanh, device, 7)
+        "GAL": SinModel(lambda: GAL(3, device=device), device, 13),
+        "ReLU": SinModel(nn.ReLU, device, 14),
+        "Tanh": SinModel(nn.Tanh, device, 14)
     }
 
     for name, model in models.items():
@@ -51,6 +51,23 @@ if __name__ == '__main__':
                 optimizers[name].step()
 
                 train_losses[name].append(loss.item())
+
+            # for name, parameter in models["GAL"].model[1].named_parameters():
+            #     print(f"{name}: {parameter.grad}")
+
+        if epoch % 5 == 0:
+            with torch.no_grad():
+                layer = models["GAL"].model[1]
+
+                p = torch.cat([layer._p_l, layer._p_r])
+
+                plt.plot(x.cpu(), layer(x).cpu(), linewidth=1.0)
+
+                for p_i in p:
+                    plt.axvline(p_i.cpu(), linewidth=1.0, linestyle="--", color="tab:green")
+
+                plt.grid()
+                plt.show()
 
         print(f"[{epoch + 1}/{EPOCHS}]")
 

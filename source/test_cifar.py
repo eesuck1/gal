@@ -13,7 +13,7 @@ from source.utils import count_parameters
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-BATCH_SIZE = 512
+BATCH_SIZE = 128
 
 def load_data() -> tuple[DataLoader, DataLoader]:
     transform = transforms.Compose([
@@ -23,8 +23,8 @@ def load_data() -> tuple[DataLoader, DataLoader]:
         transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616])
     ])
 
-    train_dataset = datasets.CIFAR10(root="../data", train=True, transform=transform, download=True)
-    test_dataset = datasets.CIFAR10(root="../data", train=False, transform=transform, download=True)
+    train_dataset = datasets.CIFAR10(root="./data", train=True, transform=transform, download=True)
+    test_dataset = datasets.CIFAR10(root="./data", train=False, transform=transform, download=True)
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
@@ -37,36 +37,55 @@ def train(local_model: nn.Module, train_loader: DataLoader, criterion: nn.Module
     local_losses = []
     local_accuracy = []
 
-    for i in range(25):
-        for epoch, (images, labels) in enumerate(train_loader):
-            print(f"[{epoch}]")
+    for epoch, (images, labels) in enumerate(train_loader):
+        print(f"[{epoch}]")
 
-            images, labels = images.to(device), labels.to(device)
+        images, labels = images.to(device), labels.to(device)
 
-            optimizer.zero_grad()
-            outputs = local_model(images)
+        optimizer.zero_grad()
+        outputs = local_model(images)
 
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
 
-            local_losses.append(loss.item())
-            _, predicted = outputs.max(1)
+        local_losses.append(loss.item())
+        _, predicted = outputs.max(1)
 
-            correct = predicted.eq(labels).sum().item()
-            local_accuracy.append(correct / BATCH_SIZE)
+        correct = predicted.eq(labels).sum().item()
+        local_accuracy.append(correct / BATCH_SIZE)
 
-    torch.save(local_model.state_dict(), f"../models/{model_name}.pt")
+        if epoch % 25 == 0:
+            with torch.no_grad():
+                l = models["GAL"].activation
+
+                p = torch.cat([l._p_l, l._p_r])
+                x = torch.linspace(-10.0, 10.0, 1000).to(device)
+
+                plt.plot(x.cpu(), l(x).cpu(), linewidth=1.0)
+
+                for p_i in p:
+                    plt.axvline(p_i.cpu(), linewidth=1.0, linestyle="--", color="tab:green")
+
+                plt.grid()
+                plt.show()
+
+        if epoch > 200:
+            break
+
+    torch.save(local_model.state_dict(), f"./models/{model_name}.pt")
 
     return local_losses, local_accuracy
 
 if __name__ == '__main__':
     torch.manual_seed(0)
 
+    blocks = [2, 2, 2, 2]
+
     models = {
-        "GAL": ResNet(BasicBlock, [2, 2, 2, 2], activation=lambda: GAL(7), use_norm=True),
-        "ReLU": ResNet(BasicBlock, [2, 2, 2, 2], activation=nn.ReLU, use_norm=True),
-        "Tanh": ResNet(BasicBlock, [2, 2, 2, 2], activation=nn.Tanh, use_norm=True),
+        "GAL": ResNet(BasicBlock, blocks, activation=lambda: GAL(1, device), use_norm=True),
+        "ReLU": ResNet(BasicBlock, blocks, activation=nn.ReLU, use_norm=True),
+        "Tanh": ResNet(BasicBlock, blocks, activation=nn.Tanh, use_norm=True),
     }
 
     for model in models.values():
