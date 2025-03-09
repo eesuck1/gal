@@ -59,11 +59,9 @@ if __name__ == '__main__':
             with torch.no_grad():
                 layer = models["GAL"].model[1]
 
-                p = torch.cat([layer._p_l, layer._p_r])
-
                 plt.plot(x.cpu(), layer(x).cpu(), linewidth=1.0)
 
-                for p_i in p:
+                for p_i in layer._p_b:
                     plt.axvline(p_i.cpu(), linewidth=1.0, linestyle="--", color="tab:green")
 
                 plt.grid()
