@@ -3,3 +3,4 @@ models/
 data/
 .idea/
 source/__pycache__/*
+source/test_cifar.py
